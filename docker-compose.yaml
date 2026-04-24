@@ -1,0 +1,82 @@
+network:
+  default: bridge
+  name: electronic-shop
+  external: true
+volumes:
+  mongodb:
+  redis:
+  mysql:
+  rabbitmq: 
+service:
+  mongodb:
+    image: electronic-shop/mongodb:v1
+    container_name:mongodb
+    volumes:
+    - mongodb: /data/db
+  catalogue:
+    image: electronic-shop/catalogue:v1
+    container_name: catalogue
+    depends_on:
+    - mongodb
+  redis:
+    image: redis:7.0
+    container_name: redis
+    volumes:
+    - redis: /data
+  user:
+    image: electronic-shop/user:v1
+    container_name: user
+    depends_on:
+    - redis
+    - mongodb
+  cart:
+    image: electronic-shop/cart:v1
+    container_name: cart
+    depends_on:
+    - catalogue
+    - redis
+  mysql:
+    image: electronic-shop/mysql:v1
+    container_name: mysql
+    volumes:
+    - mysql: /var/lib/mysql
+  shipping:
+    image: electronic-shop/shipping:v1
+    container_name: shipping
+    depends_on:
+    - mysql
+    - cart
+  rabbitmq:
+    image: rabbitmq:3
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEAULT_USER: roboshop
+      RABBITMQ_DEFAULT_PASS: roboshop123
+      volumes:
+      - rabbitmq: /var/lib/rabbitmq
+  payment:
+    image: electronic-shop/payment:v1
+    container_name: payment
+    environemt:
+      CART_HOST: cart
+      CART_PORT: 8080
+      USER_HOST: user
+      USER_PORT: 8080
+      AMQP_HOST: rabbitmq
+      AMQP_USER: roboshop
+      AMQP_PASS: roboshop123
+    depends_on:
+    - rabbitmq
+    - cart
+    - user
+  frontend:
+    image: electronic-shop/frontend:v1
+    container_name: frontend
+    ports:
+    - "80:80"
+    depends_on:
+    - catalogue
+    - user
+    - cart
+    - shipping
+    - payment
